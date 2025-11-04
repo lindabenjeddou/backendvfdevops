@@ -1,6 +1,6 @@
 package tn.esprit.PI.Services;
 
-import org.apache.velocity.exception.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tn.esprit.PI.entity.*;
@@ -46,7 +46,7 @@ public class SousProjetService {
 
         // Fetch and set Project
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+                .orElseThrow(() -> new EntityNotFoundException("Project not found with ID: " + projectId));
         sousProjet.setProject(project);
         System.out.println("Project set successfully: " + project.getId());
 
@@ -194,14 +194,14 @@ public class SousProjetService {
 
     public SousProjet getSousProjetById(Long id) {
         return sousProjetRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("SousProjet not found with ID: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("SousProjet not found with ID: " + id));
     }
 
 
 
     public SousProjet confirmSousProjetAutomatically(Long id) {
         SousProjet sousProjet = sousProjetRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("SousProjet not found with ID: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("SousProjet not found with ID: " + id));
 
 
 

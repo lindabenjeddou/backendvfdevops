@@ -1,6 +1,6 @@
 package tn.esprit.PI.RestControlleur;
 
-import org.apache.velocity.exception.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 
 import tn.esprit.PI.entity.Project;
@@ -31,7 +31,7 @@ public class SousProjetController {
         try {
             SousProjet createdSousProjet = sousProjetService.createSousProjet(sousProjetDto, projectId);
             return ResponseEntity.ok(createdSousProjet);
-        } catch (ResourceNotFoundException e) {
+        } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
