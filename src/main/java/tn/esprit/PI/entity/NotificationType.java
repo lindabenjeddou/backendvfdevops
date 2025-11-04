@@ -1,0 +1,11 @@
+package tn.esprit.PI.entity;
+
+public enum NotificationType {
+    COMPONENT_ORDER,
+    STOCK_UPDATE,
+    SOUS_PROJET_CREATED,
+    INTERVENTION_ASSIGNED,
+    INTERVENTION_CREATED,
+    BON_TRAVAIL_CREATED,
+    GENERAL
+}
