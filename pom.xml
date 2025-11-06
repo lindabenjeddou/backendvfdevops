@@ -2,7 +2,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -20,10 +19,16 @@
 
   <properties>
     <java.version>17</java.version>
+
+    <!-- Versions non gérées par Spring Boot -->
+    <springdoc.version>2.1.0</springdoc.version>
+    <jjwt.version>0.11.5</jjwt.version>
+    <mockito.junit.version>5.11.0</mockito.junit.version>
+    <jacoco.version>0.8.12</jacoco.version>
   </properties>
 
   <dependencies>
-    <!-- Web & JPA -->
+    <!-- Web & Data -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
@@ -33,24 +38,55 @@
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
 
-    <!-- MySQL runtime -->
+    <!-- Sécurité -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Mail -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
+    <!-- Base de données -->
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
     </dependency>
 
-    <!-- Lombok (compile-time only) -->
+    <!-- OpenAPI (UI Swagger) -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>${springdoc.version}</version>
+    </dependency>
+
+    <!-- JWT -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Lombok -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <optional>true</optional>
-    </dependency>
-
-    <!-- OpenAPI / Swagger UI -->
-    <dependency>
-      <groupId>org.springdoc</groupId>
-      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-      <version>2.1.0</version>
     </dependency>
 
     <!-- Observabilité -->
@@ -63,25 +99,23 @@
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
 
-    <!-- TESTS -->
+    <!-- Test stack -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Extension Mockito/JUnit5 (version gérée par Boot) -->
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.junit.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- Tests Spring Security (si besoin) -->
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- H2 pour @DataJpaTest -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
@@ -89,12 +123,41 @@
     </dependency>
   </dependencies>
 
-  <!-- Pas de <repositories> pour laisser Maven Central par défaut.
-       (Si tu dois passer par Nexus, gère-le dans ~/.m2/settings.xml via un mirror unique.) -->
+  <!-- (Optionnel) Nexus interne : laisse si Jenkins n'a pas l'accès Internet -->
+  <repositories>
+    <repository>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+    <repository>
+      <id>nexus-releases</id>
+      <url>http://192.168.158.138:8081/repository/maven-releases/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+      <id>nexus-snapshots</id>
+      <url>http://192.168.158.138:8081/repository/maven-snapshots/</url>
+      <releases><enabled>false</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <distributionManagement>
+    <repository>
+      <id>deploymentRepo</id>
+      <url>http://192.168.158.138:8081/repository/maven-releases/</url>
+    </repository>
+    <snapshotRepository>
+      <id>deploymentRepo</id>
+      <url>http://192.168.158.138:8081/repository/maven-snapshots/</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <build>
     <plugins>
-      <!-- Spring Boot -->
+      <!-- Spring Boot plugin -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
@@ -108,7 +171,29 @@
         </configuration>
       </plugin>
 
-      <!-- JUnit 5 / Java 17 -->
+      <!-- JaCoCo (coverage) -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- (facultatif) Surefire pour JUnit 5, généralement auto-configuré par Spring Boot -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -116,24 +201,6 @@
         <configuration>
           <useModulePath>false</useModulePath>
         </configuration>
-      </plugin>
-
-      <!-- Jacoco (rapport XML pour Sonar) -->
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.12</version>
-        <executions>
-          <execution>
-            <id>prepare-agent</id>
-            <goals><goal>prepare-agent</goal></goals>
-          </execution>
-          <execution>
-            <id>report</id>
-            <phase>verify</phase>
-            <goals><goal>report</goal></goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
