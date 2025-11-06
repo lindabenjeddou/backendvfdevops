@@ -183,9 +183,9 @@ class ComponentServiceTest {
         // Arrange
         List<Component> components = Arrays.asList(testComponent);
         when(componentRp.searchComponents(
-                anyString(), anyString(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString()
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(),
+                any(), any(), any()
         )).thenReturn(components);
 
         // Act
@@ -199,9 +199,9 @@ class ComponentServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(componentRp, times(1)).searchComponents(
-                anyString(), anyString(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString()
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(),
+                any(), any(), any()
         );
     }
 }
