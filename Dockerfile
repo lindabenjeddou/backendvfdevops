@@ -5,8 +5,11 @@ WORKDIR /app
 # Copier tous les fichiers sources
 COPY . .
 
-# Build avec Maven Wrapper (ou Maven si wrapper échoue)
-RUN ./mvnw -B -DskipTests clean package || mvn -B -DskipTests clean package
+# Donner les permissions d'exécution au Maven Wrapper
+RUN chmod +x mvnw
+
+# Build avec Maven Wrapper
+RUN ./mvnw -B -DskipTests clean package
 
 # Stage 2: Runtime léger avec JRE
 FROM eclipse-temurin:17-jre-alpine
