@@ -1,0 +1,38 @@
+# Répertoires Maven
+target/
+!target/*.jar
+
+# Fichiers de configuration IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Tests
+src/test/
+
+# Frontend (si dans le même repo)
+frontend/node_modules/
+frontend/build/
+
+# Environnement
+.env
+.env.local
