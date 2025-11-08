@@ -267,12 +267,12 @@ class DemandeInterventionServiceTest {
         // Arrange
         DemandeInterventionDTO dto = new DemandeInterventionDTO();
         dto.setDescription("Updated Description");
-        dto.setStatut(StatutDemande.VALIDEE);
+        dto.setStatut(StatutDemande.TERMINEE);
         dto.setPriorite("BASSE");
         dto.setTechnicienAssigneId(5L);
 
         when(repository.existsById(1L)).thenReturn(true);
-        when(repository.updateDemandeBasicFields(1L, "Updated Description", "VALIDEE", "BASSE", 5L))
+        when(repository.updateDemandeBasicFields(1L, "Updated Description", "TERMINEE", "BASSE", 5L))
             .thenReturn(1);
         when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
 
@@ -282,7 +282,7 @@ class DemandeInterventionServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(1L, result.getId());
-        verify(repository, times(1)).updateDemandeBasicFields(1L, "Updated Description", "VALIDEE", "BASSE", 5L);
+        verify(repository, times(1)).updateDemandeBasicFields(1L, "Updated Description", "TERMINEE", "BASSE", 5L);
     }
 
     @Test
