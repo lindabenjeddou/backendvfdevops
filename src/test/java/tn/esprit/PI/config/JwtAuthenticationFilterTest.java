@@ -4,97 +4,120 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import tn.esprit.PI.entity.Token;              // ✅ TON VRAI PACKAGE
+import tn.esprit.PI.entity.Token;
 import tn.esprit.PI.repository.TokenRepository;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+/**
+ * Tests unitaires ciblés pour augmenter la couverture sur JwtAuthenticationFilter.
+ */
 class JwtAuthenticationFilterTest {
 
-    @Mock
     private JwtService jwtService;
-
-    @Mock
     private UserDetailsService userDetailsService;
-
-    @Mock
     private TokenRepository tokenRepository;
-
-    @Mock
-    private HttpServletRequest request;
-
-    @Mock
-    private HttpServletResponse response;
-
-    @Mock
-    private FilterChain filterChain;
-
-    @InjectMocks
     private JwtAuthenticationFilter filter;
 
-    @Test
-    void should_set_authentication_when_token_valid() throws ServletException, IOException {
-        String jwt = "validToken";
-        String email = "user@test.com";
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private FilterChain filterChain;
 
-        when(request.getServletPath()).thenReturn("/api/secure");
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + jwt);
-        when(jwtService.extractUsername(jwt)).thenReturn(email);
+    @BeforeEach
+    void setUp() {
+        jwtService = mock(JwtService.class);
+        userDetailsService = mock(UserDetailsService.class);
+        tokenRepository = mock(TokenRepository.class);
 
-        UserDetails userDetails = User
-                .withUsername(email)
-                .password("pwd")
-                .authorities("ROLE_USER")
-                .build();
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+        filter = new JwtAuthenticationFilter(jwtService, userDetailsService, tokenRepository);
 
-        Token storedToken = new Token();
-        storedToken.setExpired(false);
-        storedToken.setRevoked(false);
-        when(tokenRepository.findByToken(jwt)).thenReturn(Optional.of(storedToken));
-
-        when(jwtService.isTokenValid(jwt, userDetails)).thenReturn(true);
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        assert SecurityContextHolder.getContext().getAuthentication() instanceof UsernamePasswordAuthenticationToken;
+        request = mock(HttpServletRequest.class);
+        response = mock(HttpServletResponse.class);
+        filterChain = mock(FilterChain.class);
 
         SecurityContextHolder.clearContext();
     }
 
     @Test
-    void should_skip_when_no_auth_header() throws ServletException, IOException {
-        when(request.getServletPath()).thenReturn("/api/secure");
-        when(request.getHeader("Authorization")).thenReturn(null);
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        assert SecurityContextHolder.getContext().getAuthentication() == null;
-    }
-
-    @Test
-    void should_skip_for_public_endpoints() throws ServletException, IOException {
+    void shouldSkipExcludedPaths() throws ServletException, IOException {
         when(request.getServletPath()).thenReturn("/actuator/health");
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
-        assert SecurityContextHolder.getContext().getAuthentication() == null;
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verifyNoInteractions(jwtService, userDetailsService, tokenRepository);
+    }
+
+    @Test
+    void shouldNotAuthenticateWhenNoAuthorizationHeader() throws ServletException, IOException {
+        when(request.getServletPath()).thenReturn("/api/test");
+        when(request.getHeader("Authorization")).thenReturn(null);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    void shouldAuthenticateWhenJwtIsValidAndNotRevoked() throws ServletException, IOException {
+        when(request.getServletPath()).thenReturn("/api/secure");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-jwt");
+
+        UserDetails userDetails =
+                new User("user@test.com", "password", Collections.emptyList());
+
+        Token token = new Token();
+        token.setToken("valid-jwt");
+        token.setExpired(false);
+        token.setRevoked(false);
+
+        when(jwtService.extractUsername("valid-jwt")).thenReturn("user@test.com");
+        when(userDetailsService.loadUserByUsername("user@test.com")).thenReturn(userDetails);
+        when(tokenRepository.findByToken("valid-jwt")).thenReturn(Optional.of(token));
+        when(jwtService.isTokenValid("valid-jwt", userDetails)).thenReturn(true);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .isEqualTo(userDetails);
+    }
+
+    @Test
+    void shouldNotAuthenticateWhenTokenExpiredOrInvalid() throws ServletException, IOException {
+        when(request.getServletPath()).thenReturn("/api/secure");
+        when(request.getHeader("Authorization")).thenReturn("Bearer bad-jwt");
+
+        UserDetails userDetails =
+                new User("user@test.com", "password", Collections.emptyList());
+
+        Token token = new Token();
+        token.setToken("bad-jwt");
+        token.setExpired(true);      // simul token expiré
+        token.setRevoked(false);
+
+        when(jwtService.extractUsername("bad-jwt")).thenReturn("user@test.com");
+        when(userDetailsService.loadUserByUsername("user@test.com")).thenReturn(userDetails);
+        when(tokenRepository.findByToken("bad-jwt")).thenReturn(Optional.of(token));
+        when(jwtService.isTokenValid("bad-jwt", userDetails)).thenReturn(false);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 }
