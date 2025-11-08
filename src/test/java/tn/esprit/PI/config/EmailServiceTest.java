@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -120,8 +121,10 @@ class EmailServiceTest {
         // Act & Assert - should handle null gracefully
         try {
             emailService.sendRegistrationEmail(to, subject, body);
-        } catch (Exception e) {
-            // Expected to catch exception from SimpleMailMessage
+            fail("Expected NullPointerException to be thrown");
+        } catch (NullPointerException e) {
+            // Expected exception from SimpleMailMessage
+            assertNotNull(e);
         }
     }
 

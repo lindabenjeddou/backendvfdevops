@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tn.esprit.PI.entity.DemandeIntervention;
 import tn.esprit.PI.entity.Testeur;
 import tn.esprit.PI.entity.TesteurDTO;
 import tn.esprit.PI.repository.TesteurRepository;
