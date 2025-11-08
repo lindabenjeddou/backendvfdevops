@@ -3,6 +3,10 @@ package tn.esprit.PI.Services;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -215,34 +219,16 @@ class StockServiceTest {
         assertTrue(result);
     }
 
-    @Test
-    void testHasEnoughStock_NullQuantity() {
+    @ParameterizedTest(name = "hasEnoughStock with invalid quantity: {0}")
+    @CsvSource({
+        "null",
+        "''",
+        "invalid"
+    })
+    @NullSource
+    void testHasEnoughStock_InvalidQuantities(String quantity) {
         // Arrange
-        testComponent.setTrartQuantite(null);
-
-        // Act
-        boolean result = service.hasEnoughStock(testComponent, 10);
-
-        // Assert
-        assertFalse(result);
-    }
-
-    @Test
-    void testHasEnoughStock_EmptyQuantity() {
-        // Arrange
-        testComponent.setTrartQuantite("");
-
-        // Act
-        boolean result = service.hasEnoughStock(testComponent, 10);
-
-        // Assert
-        assertFalse(result);
-    }
-
-    @Test
-    void testHasEnoughStock_InvalidQuantity() {
-        // Arrange
-        testComponent.setTrartQuantite("invalid");
+        testComponent.setTrartQuantite("null".equals(quantity) ? null : quantity);
 
         // Act
         boolean result = service.hasEnoughStock(testComponent, 10);
@@ -260,46 +246,17 @@ class StockServiceTest {
         assertEquals(100, result);
     }
 
-    @Test
-    void testGetCurrentStock_Zero() {
+    @ParameterizedTest(name = "getCurrentStock returns 0 for: {0}")
+    @CsvSource({
+        "0",
+        "null",
+        "''",
+        "invalid"
+    })
+    @NullSource
+    void testGetCurrentStock_ReturnsZeroForInvalidQuantities(String quantity) {
         // Arrange
-        testComponent.setTrartQuantite("0");
-
-        // Act
-        int result = service.getCurrentStock(testComponent);
-
-        // Assert
-        assertEquals(0, result);
-    }
-
-    @Test
-    void testGetCurrentStock_NullQuantity() {
-        // Arrange
-        testComponent.setTrartQuantite(null);
-
-        // Act
-        int result = service.getCurrentStock(testComponent);
-
-        // Assert
-        assertEquals(0, result);
-    }
-
-    @Test
-    void testGetCurrentStock_EmptyQuantity() {
-        // Arrange
-        testComponent.setTrartQuantite("");
-
-        // Act
-        int result = service.getCurrentStock(testComponent);
-
-        // Assert
-        assertEquals(0, result);
-    }
-
-    @Test
-    void testGetCurrentStock_InvalidQuantity() {
-        // Arrange
-        testComponent.setTrartQuantite("invalid");
+        testComponent.setTrartQuantite("null".equals(quantity) ? null : quantity);
 
         // Act
         int result = service.getCurrentStock(testComponent);
