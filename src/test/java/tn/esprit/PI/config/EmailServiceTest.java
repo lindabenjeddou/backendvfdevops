@@ -118,14 +118,11 @@ class EmailServiceTest {
         String subject = "Test";
         String body = "Test body";
 
-        // Act & Assert - should handle null gracefully
-        try {
-            emailService.sendRegistrationEmail(to, subject, body);
-            fail("Expected NullPointerException to be thrown");
-        } catch (NullPointerException e) {
-            // Expected exception from SimpleMailMessage
-            assertNotNull(e);
-        }
+        // Act - should handle null gracefully without throwing
+        emailService.sendRegistrationEmail(to, subject, body);
+        
+        // Assert - method completes (email service catches exceptions internally)
+        verify(javaMailSender, never()).send(any(SimpleMailMessage.class));
     }
 
     @Test
