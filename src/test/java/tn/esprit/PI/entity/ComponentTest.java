@@ -25,6 +25,7 @@ class ComponentTest {
         component.setAtl("ATL001");
         component.setBur("BUR001");
         component.setTest("Test");
+        component.setPrix("99.99");
     }
 
     @Test
@@ -62,7 +63,8 @@ class ComponentTest {
                 "Trans2",
                 "15",
                 "TestValue",
-                "Piece"
+                "Piece",
+                "100.50"
         );
 
         // Assert
@@ -186,5 +188,55 @@ class ComponentTest {
         
         assertEquals("Component-123 (New)", component.getTrartDesignation());
         assertEquals("Brand & Co.", component.getTrartMarque());
+    }
+
+    @Test
+    void testPrixField() {
+        // Test Prix as String
+        component.setPrix("150.75");
+        assertEquals("150.75", component.getPrix());
+        assertTrue(component.getPrix() instanceof String);
+    }
+
+    @Test
+    void testPrixWithDifferentFormats() {
+        // Test different price formats
+        component.setPrix("100");
+        assertEquals("100", component.getPrix());
+
+        component.setPrix("99.99");
+        assertEquals("99.99", component.getPrix());
+
+        component.setPrix("1234.567");
+        assertEquals("1234.567", component.getPrix());
+    }
+
+    @Test
+    void testPrePersist_GeneratesIdWhenNull() {
+        // Arrange
+        Component newComponent = new Component();
+        newComponent.setTrartArticle(null);
+
+        // Act
+        newComponent.prePersist();
+
+        // Assert
+        assertNotNull(newComponent.getTrartArticle());
+        // UUID format check (36 characters with dashes)
+        assertEquals(36, newComponent.getTrartArticle().length());
+    }
+
+    @Test
+    void testPrePersist_DoesNotOverrideExistingId() {
+        // Arrange
+        Component newComponent = new Component();
+        String existingId = "EXISTING_ID_123";
+        newComponent.setTrartArticle(existingId);
+
+        // Act
+        newComponent.prePersist();
+
+        // Assert
+        assertEquals(existingId, newComponent.getTrartArticle());
     }
 }
