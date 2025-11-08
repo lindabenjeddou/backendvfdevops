@@ -207,7 +207,7 @@ class PlanningHoraireServiceTest {
     @Test
     void testGetTechniciensDisponibles_NotTechnicien() {
         LocalDate date = LocalDate.now();
-        testUser.setRole(UserRole.DEMANDEUR);
+        testUser.setRole(UserRole.ADMIN);
         testPlanning.setStartDate(date.atStartOfDay());
         testPlanning.setEndDate(date.atTime(23, 59));
 
