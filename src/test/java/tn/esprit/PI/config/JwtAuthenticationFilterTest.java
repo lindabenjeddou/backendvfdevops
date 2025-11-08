@@ -85,8 +85,12 @@ class JwtAuthenticationFilterTest {
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        assertThat(authentication).isNotNull();
-        assertThat(authentication).isInstanceOf(UsernamePasswordAuthenticationToken.class);
+
+        // Assertions chaînées sur le même objet (S5853 OK)
+        assertThat(authentication)
+                .isNotNull()
+                .isInstanceOf(UsernamePasswordAuthenticationToken.class);
+
         assertThat(authentication.getPrincipal()).isEqualTo(userDetails);
         assertThat(authentication.isAuthenticated()).isTrue();
 
@@ -129,15 +133,15 @@ class JwtAuthenticationFilterTest {
         );
         when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
 
+        // Token présent mais marqué invalide en base
         Token storedToken = Token.builder()
                 .token(token)
-                .expired(true)   // ou revoked = true, l'un des deux suffit à l'invalider
+                .expired(true)   // ou revoked = true
                 .revoked(false)
                 .build();
         when(tokenRepository.findByToken(token)).thenReturn(Optional.of(storedToken));
 
-        // Le JWT en lui-même pourrait être techniquement valide,
-        // mais l'état en base (expired/revoked) doit empêcher l'authentification.
+        // Même si le JWT paraît valide, l’état expired/revoked doit bloquer
         when(jwtService.isTokenValid(token, userDetails)).thenReturn(true);
 
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
