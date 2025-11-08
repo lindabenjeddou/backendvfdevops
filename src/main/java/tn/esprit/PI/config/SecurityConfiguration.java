@@ -43,6 +43,7 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(source)) // Utiliser la configuration CORS définie
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
+                                .requestMatchers("/actuator/**").permitAll()
                                 .requestMatchers(
                                         "/user/**",
                                         "/v2/api-docs",
