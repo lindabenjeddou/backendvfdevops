@@ -56,6 +56,9 @@ class JwtAuthenticationFilterTest {
         SecurityContextHolder.clearContext();
     }
 
+    /**
+     * Les paths exclus (ex: /actuator/**) doivent être ignorés par le filtre.
+     */
     @Test
     void doFilterInternal_shouldSkipExcludedPaths() throws ServletException, IOException {
         when(request.getServletPath()).thenReturn("/actuator/health");
@@ -66,6 +69,9 @@ class JwtAuthenticationFilterTest {
         verifyNoInteractions(jwtService, userDetailsService, tokenRepository);
     }
 
+    /**
+     * Pas de header Authorization -> on laisse passer sans toucher au SecurityContext.
+     */
     @Test
     void doFilterInternal_noAuthorizationHeader_callsNextFilter() throws ServletException, IOException {
         when(request.getServletPath()).thenReturn("/PI/secure");
@@ -77,6 +83,9 @@ class JwtAuthenticationFilterTest {
         verifyNoInteractions(jwtService, userDetailsService, tokenRepository);
     }
 
+    /**
+     * Header qui ne commence pas par Bearer -> ignoré.
+     */
     @Test
     void doFilterInternal_invalidAuthorizationHeader_callsNextFilter() throws ServletException, IOException {
         when(request.getServletPath()).thenReturn("/PI/secure");
@@ -88,6 +97,9 @@ class JwtAuthenticationFilterTest {
         verifyNoInteractions(jwtService, userDetailsService, tokenRepository);
     }
 
+    /**
+     * Token valide + non expiré/non révoqué -> authentification doit être créée.
+     */
     @Test
     void doFilterInternal_validToken_setsAuthentication() throws ServletException, IOException {
         String jwt = "valid.jwt.token";
@@ -106,11 +118,43 @@ class JwtAuthenticationFilterTest {
 
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
-        // le filtre doit continuer la chaîne
+        // la chaîne continue
         verify(filterChain, times(1)).doFilter(request, response);
 
-        // et le SecurityContext doit avoir une auth (on vérifie que ça a été fait)
+        // et une Authentication est bien positionnée
         assert SecurityContextHolder.getContext().getAuthentication() != null;
         verify(userDetailsService, times(1)).loadUserByUsername(email);
+    }
+
+    /**
+     * Token trouvé mais marqué expiré/révoqué -> NE DOIT PAS authentifier l'utilisateur.
+     * Couvre la branche souvent manquante pour Sonar (revoked/expired).
+     */
+    @Test
+    void doFilterInternal_revokedOrExpiredToken_doesNotSetAuthentication() throws ServletException, IOException {
+        String jwt = "bad.jwt.token";
+        String email = "user@test.com";
+
+        when(request.getServletPath()).thenReturn("/PI/secure");
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + jwt);
+        when(jwtService.extractUsername(jwt)).thenReturn(email);
+        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+
+        // Token trouvé en BDD mais invalide
+        when(tokenRepository.findByToken(jwt)).thenReturn(Optional.of(token));
+        when(token.isExpired()).thenReturn(true);
+        when(token.isRevoked()).thenReturn(true);
+
+        // Même si la signature est "valide", les flags BDD doivent l'emporter
+        when(jwtService.isTokenValid(jwt, userDetails)).thenReturn(true);
+
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // la chaîne continue
+        verify(filterChain, times(1)).doFilter(request, response);
+
+        // mais aucun utilisateur ne doit être authentifié
+        assert SecurityContextHolder.getContext().getAuthentication() == null;
+        // pas besoin d'autres interactions
     }
 }
