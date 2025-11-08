@@ -59,11 +59,17 @@ class JwtAuthenticationFilterTest {
         SecurityContextHolder.clearContext();
     }
 
+    // Utilitaire : toujours renvoyer un chemin non nul et NON /api/v1/auth
+    private void mockSecuredPath() {
+        when(request.getServletPath()).thenReturn("/api/v1/secure/resource");
+    }
+
     @Test
     void doFilterInternal_validToken_setsAuthentication() throws ServletException, IOException {
         String token = "valid-token";
         String email = "user@example.com";
 
+        mockSecuredPath();
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(jwtService.extractUsername(token)).thenReturn(email);
 
@@ -86,68 +92,13 @@ class JwtAuthenticationFilterTest {
 
         var authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        // Assertions chaînées sur le même objet (S5853 OK)
         assertThat(authentication)
                 .isNotNull()
                 .isInstanceOf(UsernamePasswordAuthenticationToken.class);
-
         assertThat(authentication.getPrincipal()).isEqualTo(userDetails);
         assertThat(authentication.isAuthenticated()).isTrue();
 
-        verify(filterChain).doFilter(request, response);
-        verify(jwtService).extractUsername(token);
-        verify(userDetailsService).loadUserByUsername(email);
-        verify(tokenRepository).findByToken(token);
-        verify(jwtService).isTokenValid(token, userDetails);
-        verifyNoMoreInteractions(handlerExceptionResolver);
-    }
-
-    @Test
-    void doFilterInternal_invalidOrNoUsername_doesNotSetAuthentication() throws ServletException, IOException {
-        String token = "invalid-token";
-
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.extractUsername(token)).thenReturn(null);
-
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-
-        verify(jwtService).extractUsername(token);
-        verify(filterChain).doFilter(request, response);
-        verifyNoInteractions(userDetailsService, tokenRepository, handlerExceptionResolver);
-    }
-
-    @Test
-    void doFilterInternal_revokedOrExpiredToken_doesNotSetAuthentication() throws ServletException, IOException {
-        String token = "revoked-or-expired-token";
-        String email = "user@example.com";
-
-        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.extractUsername(token)).thenReturn(email);
-
-        UserDetails userDetails = new User(
-                email,
-                "password",
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-        );
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
-
-        // Token présent mais marqué invalide en base
-        Token storedToken = Token.builder()
-                .token(token)
-                .expired(true)   // ou revoked = true
-                .revoked(false)
-                .build();
-        when(tokenRepository.findByToken(token)).thenReturn(Optional.of(storedToken));
-
-        // Même si le JWT paraît valide, l’état expired/revoked doit bloquer
-        when(jwtService.isTokenValid(token, userDetails)).thenReturn(true);
-
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-
+        verify(request).getServletPath();
         verify(request).getHeader("Authorization");
         verify(jwtService).extractUsername(token);
         verify(userDetailsService).loadUserByUsername(email);
@@ -158,13 +109,78 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void doFilterInternal_noAuthorizationHeader_callsNextFilterOnly() throws ServletException, IOException {
+    void doFilterInternal_invalidOrNoUsername_doesNotSetAuthentication()
+            throws ServletException, IOException {
+
+        String token = "invalid-token";
+
+        mockSecuredPath();
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(jwtService.extractUsername(token)).thenReturn(null);
+
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+
+        verify(request).getServletPath();
+        verify(request).getHeader("Authorization");
+        verify(jwtService).extractUsername(token);
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(userDetailsService, tokenRepository, handlerExceptionResolver);
+    }
+
+    @Test
+    void doFilterInternal_revokedOrExpiredToken_doesNotSetAuthentication()
+            throws ServletException, IOException {
+
+        String token = "revoked-or-expired-token";
+        String email = "user@example.com";
+
+        mockSecuredPath();
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(jwtService.extractUsername(token)).thenReturn(email);
+
+        UserDetails userDetails = new User(
+                email,
+                "password",
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+
+        Token storedToken = Token.builder()
+                .token(token)
+                .expired(true)   // ou revoked = true
+                .revoked(false)
+                .build();
+        when(tokenRepository.findByToken(token)).thenReturn(Optional.of(storedToken));
+        when(jwtService.isTokenValid(token, userDetails)).thenReturn(true);
+
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+
+        verify(request).getServletPath();
+        verify(request).getHeader("Authorization");
+        verify(jwtService).extractUsername(token);
+        verify(userDetailsService).loadUserByUsername(email);
+        verify(tokenRepository).findByToken(token);
+        verify(jwtService).isTokenValid(token, userDetails);
+        verify(filterChain).doFilter(request, response);
+        verifyNoMoreInteractions(handlerExceptionResolver);
+    }
+
+    @Test
+    void doFilterInternal_noAuthorizationHeader_callsNextFilterOnly()
+            throws ServletException, IOException {
+
+        mockSecuredPath();
         when(request.getHeader("Authorization")).thenReturn(null);
 
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
 
+        verify(request).getServletPath();
         verify(request).getHeader("Authorization");
         verify(filterChain).doFilter(request, response);
         verifyNoInteractions(jwtService, userDetailsService, tokenRepository, handlerExceptionResolver);
