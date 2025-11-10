@@ -16,8 +16,8 @@ public interface DemandeInterventionRepository extends JpaRepository<DemandeInte
     /** Toutes les demandes (dates null-safe) */
     @Query(value =
             "SELECT id, description, date_demande, statut, priorite, demandeur, type_demande, " +
-                    "CASE WHEN date_creation = '0000-00-00 00:00:00' THEN NULL ELSE date_creation END AS date_creation, " +
-                    "CASE WHEN date_validation = '0000-00-00 00:00:00' THEN NULL ELSE date_validation END AS date_validation, " +
+                    "NULLIF(date_creation, '0000-00-00 00:00:00') AS date_creation, " +
+                    "NULLIF(date_validation, '0000-00-00 00:00:00') AS date_validation, " +
                     "COALESCE(confirmation, 0) AS confirmation, " +
                     "testeur_code_gmao, technicien_id, " +
                     "panne, urgence, frequence, prochainrdv " +
@@ -28,8 +28,8 @@ public interface DemandeInterventionRepository extends JpaRepository<DemandeInte
     /** Demandes assignées à un technicien (dates null-safe) */
     @Query(value =
             "SELECT id, description, date_demande, statut, priorite, demandeur, type_demande, " +
-                    "CASE WHEN date_creation = '0000-00-00 00:00:00' THEN NULL ELSE date_creation END AS date_creation, " +
-                    "CASE WHEN date_validation = '0000-00-00 00:00:00' THEN NULL ELSE date_validation END AS date_validation, " +
+                    "NULLIF(date_creation, '0000-00-00 00:00:00') AS date_creation, " +
+                    "NULLIF(date_validation, '0000-00-00 00:00:00') AS date_validation, " +
                     "COALESCE(confirmation, 0) AS confirmation, " +
                     "testeur_code_gmao, technicien_id, " +
                     "panne, urgence, frequence, prochainrdv " +
