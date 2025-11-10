@@ -1,90 +1,112 @@
-name: pfe-app
+version: '3.8'
 
 services:
-  mysql-db:
+  # Base de données MySQL
+  mysql:
     image: mysql:8.0
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: projetpfefinale
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-pidevdb}
+      MYSQL_USER: ${MYSQL_USER:-pidev}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pidev123}
     ports:
       - "3306:3306"
     volumes:
-      - ${DEPLOY_PATH}/mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      timeout: 20s
+      retries: 10
+      interval: 5s
 
+  # Backend Spring Boot
   backend:
-    image: localhost:5000/backend:5.1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: spring-backend
     restart: always
-    depends_on:
-      - mysql-db
     ports:
-      - "8089:8089"
+      - "${BACKEND_PORT:-8089}:8089"
+    environment:
+      # Configuration de la base de données
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/pidevdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-pidev}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-pidev123}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      # JWT Secret
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      # Port du serveur
+      SERVER_PORT: 8089
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8089/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
+  # Frontend React (Notus)
   frontend:
-    image: localhost:5000/frontend:1.0.0
+    build:
+      context: C:/Users/user/Downloads/notus-react-main/notus-react-main
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8089}
     container_name: react-frontend
     restart: always
-    depends_on:
-      - backend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # PhpMyAdmin
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: phpmyadmin
     restart: always
-    depends_on:
-      - mysql-db
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
     environment:
-      PMA_HOST: mysql-db
+      PMA_HOST: mysql
       PMA_PORT: 3306
       PMA_USER: root
-      PMA_PASSWORD: root
-    ports:
-      - "8081:80"
-    networks:
-      - app-network
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    restart: always
-    volumes:
-      - ${DEPLOY_PATH}/config/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - app-network
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: always
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     depends_on:
-      - prometheus
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
-    ports:
-      - "3002:3000"
-    volumes:
-      - ${DEPLOY_PATH}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - ${DEPLOY_PATH}/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ${DEPLOY_PATH}/grafana/dashboards:/var/lib/grafana/dashboards
-      - ${DEPLOY_PATH}/grafana/data:/var/lib/grafana
+      mysql:
+        condition: service_healthy
     networks:
       - app-network
 
 networks:
   app-network:
     driver: bridge
+    name: pidev-network
+
+volumes:
+  mysql_data:
+    driver: local
+    name: pidev-mysql-data
