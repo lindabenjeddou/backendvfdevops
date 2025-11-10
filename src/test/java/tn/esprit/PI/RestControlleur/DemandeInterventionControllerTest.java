@@ -353,7 +353,7 @@ class DemandeInterventionControllerTest {
     @Test
     void testUpdateDemande_InternalServerError() throws Exception {
         when(demandeInterventionService.updateDemande(anyLong(), any(DemandeInterventionDTO.class)))
-                .thenThrow(new NullPointerException("Unexpected error"));
+                .thenThrow(new IllegalStateException("Unexpected error"));
 
         mockMvc.perform(put("/demandes/update/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -364,7 +364,7 @@ class DemandeInterventionControllerTest {
     @Test
     void testAssignTechnicianToIntervention_InternalServerError() throws Exception {
         when(demandeInterventionService.assignTechnicianToIntervention(1L, 2L))
-                .thenThrow(new NullPointerException("Unexpected error"));
+                .thenThrow(new IllegalStateException("Unexpected error"));
 
         mockMvc.perform(put("/demandes/assign/1/technicien/2"))
                 .andExpect(status().isInternalServerError());
@@ -382,7 +382,7 @@ class DemandeInterventionControllerTest {
     @Test
     void testAssignTesteurToIntervention_InternalServerError() throws Exception {
         when(demandeInterventionService.assignTesteurToIntervention(1L, "TEST001"))
-                .thenThrow(new NullPointerException("Unexpected error"));
+                .thenThrow(new IllegalStateException("Unexpected error"));
 
         mockMvc.perform(put("/demandes/assign/1/testeur/TEST001"))
                 .andExpect(status().isInternalServerError());
@@ -400,7 +400,7 @@ class DemandeInterventionControllerTest {
     @Test
     void testConfirmerIntervention_InternalServerError() throws Exception {
         when(demandeInterventionService.confirmerIntervention(1L))
-                .thenThrow(new NullPointerException("Unexpected error"));
+                .thenThrow(new IllegalStateException("Unexpected error"));
 
         mockMvc.perform(put("/demandes/confirmer/1"))
                 .andExpect(status().isInternalServerError());
@@ -426,7 +426,7 @@ class DemandeInterventionControllerTest {
         request.description = "Test bon";
 
         when(bonDeTravailService.createBonDeTravailFromIntervention(anyLong(), anyLong(), any()))
-                .thenThrow(new NullPointerException("Unexpected error"));
+                .thenThrow(new IllegalStateException("Unexpected error"));
 
         mockMvc.perform(post("/demandes/1/bon-travail/technicien/2")
                         .contentType(MediaType.APPLICATION_JSON)
