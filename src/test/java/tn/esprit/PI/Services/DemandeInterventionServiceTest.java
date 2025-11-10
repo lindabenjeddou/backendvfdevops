@@ -323,4 +323,174 @@ class DemandeInterventionServiceTest {
         // Assert
         verify(repository, times(1)).deleteById(1L);
     }
+
+    @Test
+    void testGetAll_Success() {
+        // Arrange
+        tn.esprit.PI.entity.DemandeIntervention demande = new tn.esprit.PI.entity.Curative();
+        demande.setId(1L);
+        demande.setDescription("Test");
+        when(repository.findAll()).thenReturn(Collections.singletonList(demande));
+
+        // Act
+        List<tn.esprit.PI.entity.DemandeIntervention> result = service.getAll();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(repository, times(1)).findAll();
+    }
+
+    @Test
+    void testGetDemandesByTechnicien_Exception() {
+        // Arrange
+        when(repository.findAllByTechnicienIdWithNullSafeDates(2L))
+            .thenThrow(new RuntimeException("Database error"));
+
+        // Act
+        List<DemandeInterventionDTO> result = service.getDemandesByTechnicien(2L);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testAssignTesteurToIntervention_NoRowsUpdated() {
+        // Arrange
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(testeurRepository.existsById("TEST001")).thenReturn(true);
+        when(repository.assignTesteurNative(1L, "TEST001")).thenReturn(0);
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.assignTesteurToIntervention(1L, "TEST001"));
+        assertTrue(exception.getMessage().contains("Aucune ligne mise à jour"));
+    }
+
+    @Test
+    void testConfirmerIntervention_NoRowsUpdated() {
+        // Arrange
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.confirmerInterventionNative(1L)).thenReturn(0);
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.confirmerIntervention(1L));
+        assertTrue(exception.getMessage().contains("Aucune ligne mise à jour"));
+    }
+
+    @Test
+    void testMapRowToDTO_WithNullValues() {
+        // Arrange
+        Map<String, Object> rowWithNulls = new HashMap<>();
+        rowWithNulls.put("id", 1L);
+        rowWithNulls.put("description", "Test");
+        rowWithNulls.put("date_demande", new Date());
+        rowWithNulls.put("statut", "EN_ATTENTE");
+        rowWithNulls.put("priorite", null);
+        rowWithNulls.put("demandeur", null);
+        rowWithNulls.put("type_demande", "CURATIVE");
+        rowWithNulls.put("date_creation", null);
+        rowWithNulls.put("date_validation", null);
+        rowWithNulls.put("confirmation", null);
+        rowWithNulls.put("testeur_code_gmao", null);
+        rowWithNulls.put("technicien_id", null);
+        rowWithNulls.put("panne", null);
+        rowWithNulls.put("urgence", null);
+        rowWithNulls.put("frequence", null);
+        rowWithNulls.put("prochainrdv", null);
+
+        when(repository.findAllWithNullSafeDates()).thenReturn(Collections.singletonList(rowWithNulls));
+
+        // Act
+        Optional<DemandeInterventionDTO> result = service.getDemandeById(1L);
+
+        // Assert
+        assertTrue(result.isPresent());
+        assertEquals(1L, result.get().getId());
+        assertNull(result.get().getDemandeurId());
+        assertNull(result.get().getTechnicienAssigneId());
+        assertEquals(0, result.get().getConfirmation());
+    }
+
+    @Test
+    void testAssignTechnicianToIntervention_GenericException() {
+        // Arrange
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(userRepository.existsById(3L)).thenReturn(true);
+        when(repository.assignTechnicianNative(1L, 3L))
+            .thenThrow(new RuntimeException("Unexpected error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.assignTechnicianToIntervention(1L, 3L));
+        assertTrue(exception.getMessage().contains("Erreur lors de l'affectation"));
+    }
+
+    @Test
+    void testAssignTesteurToIntervention_GenericException() {
+        // Arrange
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(testeurRepository.existsById("TEST001")).thenReturn(true);
+        when(repository.assignTesteurNative(1L, "TEST001"))
+            .thenThrow(new RuntimeException("Unexpected error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.assignTesteurToIntervention(1L, "TEST001"));
+        assertTrue(exception.getMessage().contains("Erreur lors de l'affectation du testeur"));
+    }
+
+    @Test
+    void testConfirmerIntervention_GenericException() {
+        // Arrange
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.confirmerInterventionNative(1L))
+            .thenThrow(new RuntimeException("Unexpected error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.confirmerIntervention(1L));
+        assertTrue(exception.getMessage().contains("Erreur lors de la confirmation"));
+    }
+
+    @Test
+    void testUpdateDemande_GenericException() {
+        // Arrange
+        DemandeInterventionDTO dto = new DemandeInterventionDTO();
+        dto.setDescription("Test");
+        
+        when(repository.existsById(1L)).thenReturn(true);
+        when(repository.updateDemandeBasicFields(any(), any(), any(), any(), any()))
+            .thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> service.updateDemande(1L, dto));
+        assertTrue(exception.getMessage().contains("Erreur lors de la mise à jour"));
+    }
+
+    @Test
+    void testUpdateDemande_WithNullStatut() {
+        // Arrange
+        DemandeInterventionDTO dto = new DemandeInterventionDTO();
+        dto.setDescription("Updated Description");
+        dto.setStatut(null);
+        dto.setPriorite("BASSE");
+        dto.setTechnicienAssigneId(5L);
+
+        when(repository.existsById(1L)).thenReturn(true);
+        when(repository.updateDemandeBasicFields(1L, "Updated Description", null, "BASSE", 5L))
+            .thenReturn(1);
+        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+
+        // Act
+        DemandeInterventionDTO result = service.updateDemande(1L, dto);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+        verify(repository, times(1)).updateDemandeBasicFields(1L, "Updated Description", null, "BASSE", 5L);
+    }
 }
