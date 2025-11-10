@@ -42,12 +42,10 @@ class DemandeInterventionServiceTest {
         // Setup User (demandeur)
         testUser = new User();
         testUser.setId(1L);
-        testUser.setUsername("demandeur");
 
         // Setup Technicien
         testTechnicien = new User();
         testTechnicien.setId(2L);
-        testTechnicien.setUsername("technicien");
 
         // Setup Testeur
         testTesteur = new Testeur();
