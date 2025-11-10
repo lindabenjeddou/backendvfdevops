@@ -28,35 +28,53 @@ public class DemandeInterventionService {
 
     /* ---------- Mapping util (row native -> DTO) ---------- */
     private DemandeInterventionDTO mapRowToDTO(Map<String, Object> row) {
-        DemandeInterventionDTO dto = new DemandeInterventionDTO();
-        dto.setId(((Number) row.get("id")).longValue());
-        dto.setDescription((String) row.get("description"));
-        dto.setDateDemande((java.util.Date) row.get("date_demande"));
-        dto.setStatut(StatutDemande.valueOf((String) row.get("statut")));
-        dto.setPriorite((String) row.get("priorite"));
-        dto.setDemandeurId(row.get("demandeur") != null ? ((Number) row.get("demandeur")).longValue() : null);
-        dto.setTypeDemande((String) row.get("type_demande"));
-        dto.setDateCreation((java.util.Date) row.get("date_creation"));
-        dto.setDateValidation((java.util.Date) row.get("date_validation"));
-        dto.setConfirmation(row.get("confirmation") != null ? ((Number) row.get("confirmation")).intValue() : 0);
-        dto.setTesteurCodeGMAO((String) row.get("testeur_code_gmao"));
-        dto.setTechnicienAssigneId(row.get("technicien_id") != null ? ((Number) row.get("technicien_id")).longValue() : null);
-        dto.setPanne((String) row.get("panne"));
-        dto.setUrgence(row.get("urgence") != null ? (Boolean) row.get("urgence") : null);
-        dto.setFrequence((String) row.get("frequence"));
-        dto.setProchainRDV((java.util.Date) row.get("prochainrdv"));
-        return dto;
+        try {
+            DemandeInterventionDTO dto = new DemandeInterventionDTO();
+            dto.setId(((Number) row.get("id")).longValue());
+            dto.setDescription((String) row.get("description"));
+            dto.setDateDemande((java.util.Date) row.get("date_demande"));
+            dto.setStatut(StatutDemande.valueOf((String) row.get("statut")));
+            dto.setPriorite((String) row.get("priorite"));
+            dto.setDemandeurId(row.get("demandeur") != null ? ((Number) row.get("demandeur")).longValue() : null);
+            dto.setTypeDemande((String) row.get("type_demande"));
+            dto.setDateCreation((java.util.Date) row.get("date_creation"));
+            dto.setDateValidation((java.util.Date) row.get("date_validation"));
+            dto.setConfirmation(row.get("confirmation") != null ? ((Number) row.get("confirmation")).intValue() : 0);
+            dto.setTesteurCodeGMAO((String) row.get("testeur_code_gmao"));
+            dto.setTechnicienAssigneId(row.get("technicien_id") != null ? ((Number) row.get("technicien_id")).longValue() : null);
+            dto.setPanne((String) row.get("panne"));
+            
+            // Gérer urgence: peut être Boolean, Integer (0/1), ou null
+            Object urgenceObj = row.get("urgence");
+            if (urgenceObj != null) {
+                if (urgenceObj instanceof Boolean) {
+                    dto.setUrgence((Boolean) urgenceObj);
+                } else if (urgenceObj instanceof Number) {
+                    dto.setUrgence(((Number) urgenceObj).intValue() != 0);
+                } else {
+                    dto.setUrgence(null);
+                }
+            } else {
+                dto.setUrgence(null);
+            }
+            
+            dto.setFrequence((String) row.get("frequence"));
+            dto.setProchainRDV((java.util.Date) row.get("prochainrdv"));
+            return dto;
+        } catch (Exception e) {
+            System.err.println("Erreur mapping row ID " + row.get("id") + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Erreur mapping DTO pour ID " + row.get("id"), e);
+        }
     }
 
     /* ========================== LECTURE ========================== */
 
     public Optional<DemandeInterventionDTO> getDemandeById(Long id) {
         try {
-            return repository.findAllWithNullSafeDates()
-                    .stream()
-                    .filter(r -> ((Number) r.get("id")).longValue() == id)
-                    .findFirst()
-                    .map(this::mapRowToDTO);
+            // Utiliser JPA standard pour éviter les problèmes de dates MySQL invalides
+            return repository.findById(id)
+                    .map(this::createDTOFromEntity);
         } catch (Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -65,9 +83,18 @@ public class DemandeInterventionService {
 
     public List<DemandeInterventionDTO> getAllDemandes() {
         try {
-            return repository.findAllWithNullSafeDates()
-                    .stream().map(this::mapRowToDTO).toList();
+            // Utiliser JPA standard pour éviter les problèmes de dates MySQL invalides
+            List<DemandeIntervention> entities = repository.findAll();
+            System.out.println("📊 Nombre d'entités récupérées: " + entities.size());
+            
+            List<DemandeInterventionDTO> dtos = entities.stream()
+                    .map(this::createDTOFromEntity)
+                    .toList();
+            
+            System.out.println("✅ Nombre de DTOs mappés avec succès: " + dtos.size());
+            return dtos;
         } catch (Exception e) {
+            System.err.println("❌ ERREUR dans getAllDemandes: " + e.getMessage());
             e.printStackTrace();
             return List.of();
         }
@@ -81,8 +108,12 @@ public class DemandeInterventionService {
     /** 🔹 Interventions assignées au technicien (DTO) */
     public List<DemandeInterventionDTO> getDemandesByTechnicien(Long technicienId) {
         try {
-            return repository.findAllByTechnicienIdWithNullSafeDates(technicienId)
-                    .stream().map(this::mapRowToDTO).collect(Collectors.toList());
+            // Utiliser JPA standard pour éviter les problèmes de dates MySQL invalides
+            return repository.findAll().stream()
+                    .filter(d -> d.getTechnicienAssigne() != null && 
+                                 d.getTechnicienAssigne().getId().equals(technicienId))
+                    .map(this::createDTOFromEntity)
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
             return List.of();
@@ -98,21 +129,17 @@ public class DemandeInterventionService {
 
     public DemandeInterventionDTO assignTechnicianToIntervention(Long interventionId, Long technicienId) {
         try {
-            boolean exists = repository.findAllWithNullSafeDates().stream()
-                    .anyMatch(r -> ((Number) r.get("id")).longValue() == interventionId);
-            if (!exists) throw new RuntimeException("Intervention non trouvée avec l'ID: " + interventionId);
-
             if (!userRepository.existsById(technicienId))
                 throw new RuntimeException("Technicien non trouvé avec l'ID: " + technicienId);
 
             int rows = repository.assignTechnicianNative(interventionId, technicienId);
             if (rows == 0) throw new RuntimeException("Aucune ligne mise à jour pour l'ID: " + interventionId);
 
-            Map<String, Object> updated = repository.findAllWithNullSafeDates().stream()
-                    .filter(r -> ((Number) r.get("id")).longValue() == interventionId)
-                    .findFirst().orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention mise à jour"));
+            // Utiliser JPA pour récupérer l'entité mise à jour
+            DemandeIntervention updated = repository.findById(interventionId)
+                    .orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention mise à jour"));
 
-            return mapRowToDTO(updated);
+            return createDTOFromEntity(updated);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -123,21 +150,17 @@ public class DemandeInterventionService {
 
     public DemandeInterventionDTO assignTesteurToIntervention(Long interventionId, String testeurCodeGMAO) {
         try {
-            boolean exists = repository.findAllWithNullSafeDates().stream()
-                    .anyMatch(r -> ((Number) r.get("id")).longValue() == interventionId);
-            if (!exists) throw new RuntimeException("Intervention non trouvée avec l'ID: " + interventionId);
-
             if (!testeurRepository.existsById(testeurCodeGMAO))
                 throw new RuntimeException("Testeur/Équipement non trouvé avec le code: " + testeurCodeGMAO);
 
             int rows = repository.assignTesteurNative(interventionId, testeurCodeGMAO);
             if (rows == 0) throw new RuntimeException("Aucune ligne mise à jour pour l'ID: " + interventionId);
 
-            Map<String, Object> updated = repository.findAllWithNullSafeDates().stream()
-                    .filter(r -> ((Number) r.get("id")).longValue() == interventionId)
-                    .findFirst().orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention mise à jour"));
+            // Utiliser JPA pour récupérer l'entité mise à jour
+            DemandeIntervention updated = repository.findById(interventionId)
+                    .orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention mise à jour"));
 
-            return mapRowToDTO(updated);
+            return createDTOFromEntity(updated);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -148,18 +171,14 @@ public class DemandeInterventionService {
 
     public DemandeInterventionDTO confirmerIntervention(Long interventionId) {
         try {
-            boolean exists = repository.findAllWithNullSafeDates().stream()
-                    .anyMatch(r -> ((Number) r.get("id")).longValue() == interventionId);
-            if (!exists) throw new RuntimeException("Intervention non trouvée avec l'ID: " + interventionId);
-
             int rows = repository.confirmerInterventionNative(interventionId);
             if (rows == 0) throw new RuntimeException("Aucune ligne mise à jour pour l'ID: " + interventionId);
 
-            Map<String, Object> updated = repository.findAllWithNullSafeDates().stream()
-                    .filter(r -> ((Number) r.get("id")).longValue() == interventionId)
-                    .findFirst().orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention confirmée"));
+            // Utiliser JPA pour récupérer l'entité mise à jour
+            DemandeIntervention updated = repository.findById(interventionId)
+                    .orElseThrow(() -> new RuntimeException("Impossible de récupérer l'intervention confirmée"));
 
-            return mapRowToDTO(updated);
+            return createDTOFromEntity(updated);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -185,12 +204,11 @@ public class DemandeInterventionService {
             if (rowsUpdated == 0)
                 throw new RuntimeException("Aucune ligne mise à jour pour l'ID: " + id);
 
-            Map<String, Object> updated = repository.findAllWithNullSafeDates().stream()
-                    .filter(row -> ((Number) row.get("id")).longValue() == id)
-                    .findFirst()
+            // Utiliser JPA pour récupérer l'entité mise à jour
+            DemandeIntervention updated = repository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Impossible de récupérer la demande mise à jour"));
 
-            return mapRowToDTO(updated);
+            return createDTOFromEntity(updated);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
