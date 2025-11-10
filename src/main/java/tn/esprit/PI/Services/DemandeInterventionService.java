@@ -26,48 +26,6 @@ public class DemandeInterventionService {
     @Autowired
     private TesteurRepository testeurRepository;
 
-    /* ---------- Mapping util (row native -> DTO) ---------- */
-    private DemandeInterventionDTO mapRowToDTO(Map<String, Object> row) {
-        try {
-            DemandeInterventionDTO dto = new DemandeInterventionDTO();
-            dto.setId(((Number) row.get("id")).longValue());
-            dto.setDescription((String) row.get("description"));
-            dto.setDateDemande((java.util.Date) row.get("date_demande"));
-            dto.setStatut(StatutDemande.valueOf((String) row.get("statut")));
-            dto.setPriorite((String) row.get("priorite"));
-            dto.setDemandeurId(row.get("demandeur") != null ? ((Number) row.get("demandeur")).longValue() : null);
-            dto.setTypeDemande((String) row.get("type_demande"));
-            dto.setDateCreation((java.util.Date) row.get("date_creation"));
-            dto.setDateValidation((java.util.Date) row.get("date_validation"));
-            dto.setConfirmation(row.get("confirmation") != null ? ((Number) row.get("confirmation")).intValue() : 0);
-            dto.setTesteurCodeGMAO((String) row.get("testeur_code_gmao"));
-            dto.setTechnicienAssigneId(row.get("technicien_id") != null ? ((Number) row.get("technicien_id")).longValue() : null);
-            dto.setPanne((String) row.get("panne"));
-            
-            // Gérer urgence: peut être Boolean, Integer (0/1), ou null
-            Object urgenceObj = row.get("urgence");
-            if (urgenceObj != null) {
-                if (urgenceObj instanceof Boolean) {
-                    dto.setUrgence((Boolean) urgenceObj);
-                } else if (urgenceObj instanceof Number) {
-                    dto.setUrgence(((Number) urgenceObj).intValue() != 0);
-                } else {
-                    dto.setUrgence(null);
-                }
-            } else {
-                dto.setUrgence(null);
-            }
-            
-            dto.setFrequence((String) row.get("frequence"));
-            dto.setProchainRDV((java.util.Date) row.get("prochainrdv"));
-            return dto;
-        } catch (Exception e) {
-            System.err.println("Erreur mapping row ID " + row.get("id") + ": " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Erreur mapping DTO pour ID " + row.get("id"), e);
-        }
-    }
-
     /* ========================== LECTURE ========================== */
 
     public Optional<DemandeInterventionDTO> getDemandeById(Long id) {

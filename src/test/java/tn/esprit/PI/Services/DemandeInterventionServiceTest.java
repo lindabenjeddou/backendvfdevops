@@ -6,8 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tn.esprit.PI.entity.DemandeInterventionDTO;
-import tn.esprit.PI.entity.StatutDemande;
+import tn.esprit.PI.entity.*;
 import tn.esprit.PI.repository.DemandeInterventionRepository;
 import tn.esprit.PI.repository.TesteurRepository;
 import tn.esprit.PI.repository.UserRepository;
@@ -33,36 +32,49 @@ class DemandeInterventionServiceTest {
     @InjectMocks
     private DemandeInterventionService service;
 
-    private Map<String, Object> testRow;
-    private List<Map<String, Object>> testRows;
+    private Curative testDemande;
+    private User testUser;
+    private User testTechnicien;
+    private Testeur testTesteur;
 
     @BeforeEach
     void setUp() {
-        testRow = new HashMap<>();
-        testRow.put("id", 1L);
-        testRow.put("description", "Test Description");
-        testRow.put("date_demande", new Date());
-        testRow.put("statut", "EN_ATTENTE");
-        testRow.put("priorite", "HAUTE");
-        testRow.put("demandeur", 1L);
-        testRow.put("type_demande", "CURATIVE");
-        testRow.put("date_creation", new Date());
-        testRow.put("date_validation", new Date());
-        testRow.put("confirmation", 1);
-        testRow.put("testeur_code_gmao", "TEST001");
-        testRow.put("technicien_id", 2L);
-        testRow.put("panne", "Panne test");
-        testRow.put("urgence", true);
-        testRow.put("frequence", "MENSUELLE");
-        testRow.put("prochainrdv", new Date());
+        // Setup User (demandeur)
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("demandeur");
 
-        testRows = Collections.singletonList(testRow);
+        // Setup Technicien
+        testTechnicien = new User();
+        testTechnicien.setId(2L);
+        testTechnicien.setUsername("technicien");
+
+        // Setup Testeur
+        testTesteur = new Testeur();
+        testTesteur.setCodeGMAO("TEST001");
+
+        // Setup Curative (DemandeIntervention)
+        testDemande = new Curative();
+        testDemande.setId(1L);
+        testDemande.setDescription("Test Description");
+        testDemande.setDateDemande(new Date());
+        testDemande.setStatut(StatutDemande.EN_ATTENTE);
+        testDemande.setPriorite("HAUTE");
+        testDemande.setDemandeur(testUser);
+        testDemande.setType_demande("CURATIVE");
+        testDemande.setDateCreation(new Date());
+        testDemande.setDateValidation(new Date());
+        testDemande.setConfirmation(1);
+        testDemande.setTesteur(testTesteur);
+        testDemande.setTechnicienAssigne(testTechnicien);
+        testDemande.setPanne("Panne test");
+        testDemande.setUrgence(true);
     }
 
     @Test
     void testGetDemandeById_Success() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.findById(1L)).thenReturn(Optional.of(testDemande));
 
         // Act
         Optional<DemandeInterventionDTO> result = service.getDemandeById(1L);
@@ -72,13 +84,13 @@ class DemandeInterventionServiceTest {
         assertEquals(1L, result.get().getId());
         assertEquals("Test Description", result.get().getDescription());
         assertEquals(StatutDemande.EN_ATTENTE, result.get().getStatut());
-        verify(repository, times(1)).findAllWithNullSafeDates();
+        verify(repository, times(1)).findById(1L);
     }
 
     @Test
     void testGetDemandeById_NotFound() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.findById(999L)).thenReturn(Optional.empty());
 
         // Act
         Optional<DemandeInterventionDTO> result = service.getDemandeById(999L);
@@ -90,7 +102,7 @@ class DemandeInterventionServiceTest {
     @Test
     void testGetDemandeById_Exception() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenThrow(new RuntimeException("Database error"));
+        when(repository.findById(1L)).thenThrow(new RuntimeException("Database error"));
 
         // Act
         Optional<DemandeInterventionDTO> result = service.getDemandeById(1L);
@@ -102,7 +114,7 @@ class DemandeInterventionServiceTest {
     @Test
     void testGetAllDemandes_Success() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.findAll()).thenReturn(Collections.singletonList(testDemande));
 
         // Act
         List<DemandeInterventionDTO> result = service.getAllDemandes();
@@ -111,13 +123,13 @@ class DemandeInterventionServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getId());
-        verify(repository, times(1)).findAllWithNullSafeDates();
+        verify(repository, times(1)).findAll();
     }
 
     @Test
     void testGetAllDemandes_Exception() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenThrow(new RuntimeException("Error"));
+        when(repository.findAll()).thenThrow(new RuntimeException("Error"));
 
         // Act
         List<DemandeInterventionDTO> result = service.getAllDemandes();
@@ -130,7 +142,7 @@ class DemandeInterventionServiceTest {
     @Test
     void testGetDemandesByTechnicien_Success() {
         // Arrange
-        when(repository.findAllByTechnicienIdWithNullSafeDates(2L)).thenReturn(testRows);
+        when(repository.findAll()).thenReturn(Collections.singletonList(testDemande));
 
         // Act
         List<DemandeInterventionDTO> result = service.getDemandesByTechnicien(2L);
@@ -139,13 +151,13 @@ class DemandeInterventionServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(2L, result.get(0).getTechnicienAssigneId());
-        verify(repository, times(1)).findAllByTechnicienIdWithNullSafeDates(2L);
+        verify(repository, times(1)).findAll();
     }
 
     @Test
     void testGetByTechnicien_Success() {
         // Arrange
-        when(repository.findAllByTechnicienIdWithNullSafeDates(2L)).thenReturn(testRows);
+        when(repository.findAll()).thenReturn(Collections.singletonList(testDemande));
 
         // Act
         List<DemandeInterventionDTO> result = service.getByTechnicien(2L);
@@ -158,9 +170,9 @@ class DemandeInterventionServiceTest {
     @Test
     void testAssignTechnicianToIntervention_Success() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(userRepository.existsById(3L)).thenReturn(true);
         when(repository.assignTechnicianNative(1L, 3L)).thenReturn(1);
+        when(repository.findById(1L)).thenReturn(Optional.of(testDemande));
 
         // Act
         DemandeInterventionDTO result = service.assignTechnicianToIntervention(1L, 3L);
@@ -174,18 +186,18 @@ class DemandeInterventionServiceTest {
     @Test
     void testAssignTechnicianToIntervention_InterventionNotFound() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(Collections.emptyList());
+        when(userRepository.existsById(3L)).thenReturn(true);
+        when(repository.assignTechnicianNative(999L, 3L)).thenReturn(0);
 
         // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, 
             () -> service.assignTechnicianToIntervention(999L, 3L));
-        assertTrue(exception.getMessage().contains("Intervention non trouvée"));
+        assertTrue(exception.getMessage().contains("Aucune ligne mise à jour"));
     }
 
     @Test
     void testAssignTechnicianToIntervention_TechnicienNotFound() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(userRepository.existsById(999L)).thenReturn(false);
 
         // Act & Assert
@@ -197,7 +209,6 @@ class DemandeInterventionServiceTest {
     @Test
     void testAssignTechnicianToIntervention_NoRowsUpdated() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(userRepository.existsById(3L)).thenReturn(true);
         when(repository.assignTechnicianNative(1L, 3L)).thenReturn(0);
 
@@ -210,9 +221,9 @@ class DemandeInterventionServiceTest {
     @Test
     void testAssignTesteurToIntervention_Success() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(testeurRepository.existsById("TEST001")).thenReturn(true);
         when(repository.assignTesteurNative(1L, "TEST001")).thenReturn(1);
+        when(repository.findById(1L)).thenReturn(Optional.of(testDemande));
 
         // Act
         DemandeInterventionDTO result = service.assignTesteurToIntervention(1L, "TEST001");
@@ -227,7 +238,6 @@ class DemandeInterventionServiceTest {
     @Test
     void testAssignTesteurToIntervention_TesteurNotFound() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(testeurRepository.existsById("INVALID")).thenReturn(false);
 
         // Act & Assert
@@ -239,8 +249,8 @@ class DemandeInterventionServiceTest {
     @Test
     void testConfirmerIntervention_Success() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
         when(repository.confirmerInterventionNative(1L)).thenReturn(1);
+        when(repository.findById(1L)).thenReturn(Optional.of(testDemande));
 
         // Act
         DemandeInterventionDTO result = service.confirmerIntervention(1L);
@@ -254,12 +264,12 @@ class DemandeInterventionServiceTest {
     @Test
     void testConfirmerIntervention_NotFound() {
         // Arrange
-        when(repository.findAllWithNullSafeDates()).thenReturn(Collections.emptyList());
+        when(repository.confirmerInterventionNative(999L)).thenReturn(0);
 
         // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, 
             () -> service.confirmerIntervention(999L));
-        assertTrue(exception.getMessage().contains("Intervention non trouvée"));
+        assertTrue(exception.getMessage().contains("Aucune ligne mise à jour"));
     }
 
     @Test
@@ -274,7 +284,7 @@ class DemandeInterventionServiceTest {
         when(repository.existsById(1L)).thenReturn(true);
         when(repository.updateDemandeBasicFields(1L, "Updated Description", "TERMINEE", "BASSE", 5L))
             .thenReturn(1);
-        when(repository.findAllWithNullSafeDates()).thenReturn(testRows);
+        when(repository.findById(1L)).thenReturn(Optional.of(testDemande));
 
         // Act
         DemandeInterventionDTO result = service.updateDemande(1L, dto);
