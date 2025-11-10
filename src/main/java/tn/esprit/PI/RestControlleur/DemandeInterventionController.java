@@ -15,14 +15,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/demandes")
 public class DemandeInterventionController {
-
-    private static final Logger logger = LoggerFactory.getLogger(DemandeInterventionController.class);
 
     @Autowired
     private DemandeInterventionService demandeInterventionService;
@@ -42,10 +38,7 @@ public class DemandeInterventionController {
     /** ★ Interventions assignées à un technicien (DTO) */
     @GetMapping("/technicien/{techId}")
     public ResponseEntity<List<DemandeInterventionDTO>> getByTechnicien(@PathVariable Long techId) {
-        logger.info("Requête GET /demandes/technicien/{}", techId);
-        List<DemandeInterventionDTO> demandes = demandeInterventionService.getByTechnicien(techId);
-        logger.info("Nombre de demandes retournées pour le technicien {}: {}", techId, demandes.size());
-        return ResponseEntity.ok(demandes);
+        return ResponseEntity.ok(demandeInterventionService.getByTechnicien(techId));
     }
 
     @PostMapping("/create")
@@ -142,34 +135,23 @@ public class DemandeInterventionController {
 
     @GetMapping("/recuperer/{id}")
     public ResponseEntity<DemandeInterventionDTO> getDemandeById(@PathVariable Long id) {
-        logger.info("Requête GET /demandes/recuperer/{}", id);
         Optional<DemandeInterventionDTO> demande = demandeInterventionService.getDemandeById(id);
-        if (demande.isPresent()) {
-            logger.info("Demande trouvée avec ID: {}", id);
-        } else {
-            logger.warn("Demande non trouvée avec ID: {}", id);
-        }
         return demande.map(response -> new ResponseEntity<>(response, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     @GetMapping("/recuperer/all")
     public ResponseEntity<List<DemandeInterventionDTO>> getAllDemandes() {
-        logger.info("Requête GET /demandes/recuperer/all");
         List<DemandeInterventionDTO> demandes = demandeInterventionService.getAllDemandes();
-        logger.info("Nombre total de demandes retournées: {}", demandes.size());
         return new ResponseEntity<>(demandes, HttpStatus.OK);
     }
 
     @GetMapping("/all")
     public ResponseEntity<?> getAllDemandesShort() {
         try {
-            logger.info("Requête GET /demandes/all");
             List<DemandeInterventionDTO> demandes = demandeInterventionService.getAllDemandes();
-            logger.info("Nombre de demandes retournées (short): {}", demandes.size());
             return new ResponseEntity<>(demandes, HttpStatus.OK);
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération des demandes (short): {}", e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur lors de la récupération des demandes: " + e.getMessage());
@@ -282,12 +264,9 @@ public class DemandeInterventionController {
     @GetMapping("/{interventionId}/bons-travail")
     public ResponseEntity<?> getBonsDeTravailForIntervention(@PathVariable Long interventionId) {
         try {
-            logger.info("Requête GET /demandes/{}/bons-travail", interventionId);
             List<BonDeTravail> bons = bonDeTravailService.getBonsDeTravailByIntervention(interventionId);
-            logger.info("Nombre de bons de travail trouvés pour l'intervention {}: {}", interventionId, bons.size());
             return new ResponseEntity<>(bons, HttpStatus.OK);
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération des bons de travail pour intervention {}: {}", interventionId, e.getMessage());
             return new ResponseEntity<>(Map.of(
                     "error", "Erreur lors de la récupération des bons de travail",
                     "message", e.getMessage()

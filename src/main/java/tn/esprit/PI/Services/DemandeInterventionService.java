@@ -13,13 +13,9 @@ import tn.esprit.PI.repository.UserRepository;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 public class DemandeInterventionService {
-
-    private static final Logger logger = LoggerFactory.getLogger(DemandeInterventionService.class);
 
     @Autowired
     private DemandeInterventionRepository repository;
@@ -56,71 +52,23 @@ public class DemandeInterventionService {
 
     public Optional<DemandeInterventionDTO> getDemandeById(Long id) {
         try {
-            logger.info("Récupération de la demande avec ID: {}", id);
-            List<Map<String, Object>> results = repository.findAllWithNullSafeDates();
-            logger.info("Nombre de résultats de la requête native: {}", results.size());
-            
-            if (results.isEmpty()) {
-                logger.warn("Aucun résultat de la requête native. Utilisation du fallback JPA.");
-                return getFallbackDemandeById(id);
-            }
-            
-            return results.stream()
+            return repository.findAllWithNullSafeDates()
+                    .stream()
                     .filter(r -> ((Number) r.get("id")).longValue() == id)
                     .findFirst()
                     .map(this::mapRowToDTO);
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération de la demande ID {}: {}", id, e.getMessage());
             e.printStackTrace();
-            return getFallbackDemandeById(id);
-        }
-    }
-    
-    // Méthode fallback utilisant JPA standard
-    private Optional<DemandeInterventionDTO> getFallbackDemandeById(Long id) {
-        try {
-            logger.info("Utilisation du fallback JPA pour l'ID: {}", id);
-            return repository.findById(id).map(this::createDTOFromEntity);
-        } catch (Exception e) {
-            logger.error("Erreur dans le fallback pour ID {}: {}", id, e.getMessage());
             return Optional.empty();
         }
     }
 
     public List<DemandeInterventionDTO> getAllDemandes() {
         try {
-            logger.info("Récupération de toutes les demandes");
-            List<Map<String, Object>> results = repository.findAllWithNullSafeDates();
-            logger.info("Nombre total de résultats: {}", results.size());
-            
-            if (results.isEmpty()) {
-                logger.warn("Aucun résultat de la requête native. Utilisation du fallback JPA.");
-                return getFallbackAllDemandes();
-            }
-            
-            List<DemandeInterventionDTO> dtos = results.stream()
-                    .map(this::mapRowToDTO)
-                    .toList();
-            logger.info("Nombre de DTOs mappés: {}", dtos.size());
-            return dtos;
+            return repository.findAllWithNullSafeDates()
+                    .stream().map(this::mapRowToDTO).toList();
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération de toutes les demandes: {}", e.getMessage());
             e.printStackTrace();
-            return getFallbackAllDemandes();
-        }
-    }
-    
-    // Méthode fallback utilisant JPA standard
-    private List<DemandeInterventionDTO> getFallbackAllDemandes() {
-        try {
-            logger.info("Utilisation du fallback JPA pour toutes les demandes");
-            List<DemandeIntervention> entities = repository.findAll();
-            logger.info("Nombre d'entités récupérées via JPA: {}", entities.size());
-            return entities.stream()
-                    .map(this::createDTOFromEntity)
-                    .toList();
-        } catch (Exception e) {
-            logger.error("Erreur dans le fallback pour toutes les demandes: {}", e.getMessage());
             return List.of();
         }
     }
@@ -133,38 +81,10 @@ public class DemandeInterventionService {
     /** 🔹 Interventions assignées au technicien (DTO) */
     public List<DemandeInterventionDTO> getDemandesByTechnicien(Long technicienId) {
         try {
-            logger.info("Récupération des demandes pour le technicien ID: {}", technicienId);
-            List<Map<String, Object>> results = repository.findAllByTechnicienIdWithNullSafeDates(technicienId);
-            logger.info("Nombre de résultats pour le technicien {}: {}", technicienId, results.size());
-            
-            if (results.isEmpty()) {
-                logger.warn("Aucun résultat de la requête native. Utilisation du fallback JPA.");
-                return getFallbackDemandesByTechnicien(technicienId);
-            }
-            
-            return results.stream()
-                    .map(this::mapRowToDTO)
-                    .collect(Collectors.toList());
+            return repository.findAllByTechnicienIdWithNullSafeDates(technicienId)
+                    .stream().map(this::mapRowToDTO).collect(Collectors.toList());
         } catch (Exception e) {
-            logger.error("Erreur lors de la récupération des demandes pour technicien {}: {}", technicienId, e.getMessage());
             e.printStackTrace();
-            return getFallbackDemandesByTechnicien(technicienId);
-        }
-    }
-    
-    // Méthode fallback utilisant JPA standard
-    private List<DemandeInterventionDTO> getFallbackDemandesByTechnicien(Long technicienId) {
-        try {
-            logger.info("Utilisation du fallback JPA pour technicien ID: {}", technicienId);
-            List<DemandeIntervention> entities = repository.findAll();
-            List<DemandeInterventionDTO> filtered = entities.stream()
-                    .filter(d -> d.getTechnicienAssigne() != null && d.getTechnicienAssigne().getId().equals(technicienId))
-                    .map(this::createDTOFromEntity)
-                    .collect(Collectors.toList());
-            logger.info("Nombre de demandes trouvées via fallback pour technicien {}: {}", technicienId, filtered.size());
-            return filtered;
-        } catch (Exception e) {
-            logger.error("Erreur dans le fallback pour technicien {}: {}", technicienId, e.getMessage());
             return List.of();
         }
     }
